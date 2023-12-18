@@ -4,12 +4,6 @@ import pandas as pd
 from nltk import word_tokenize
 from abc import ABC, abstractmethod
 
-# categorical distribution will be used:
-# -for now, to determine what words go on the card (in the bag of words model)
-# -even in the future, to determine the text fields of the card
-class CategoricalDistribution:
-    pass
-
 # each model will do the following things:
 # -massage the input data (tokenize [some might want sentence end chars
 # while some wont])
@@ -23,6 +17,9 @@ class TextModel(ABC):
         ABC (_type_): _description_
     """    
     @abstractmethod
+    def __init__(self, textCategory: str, df: pd.DataFrame) -> None:
+        pass
+    @abstractmethod
     def _tokenize(self):
         pass
 
@@ -31,17 +28,38 @@ class TextModel(ABC):
         pass
 
 
-
+# consider including categorical distrubution superclass in order to
+# make it possible to use it to generate which text fields will appear
 class BagOfWords(TextModel):
+    """Language Model to generate batches of text based
+    upon each word's frequency in the corpus.
+
+    Args:
+        TextModel (_type_): _description_
+    """
 
     def __init__(self, textCategory, df) -> None:
+        """_summary_
+
+        Args:
+            textCategory (str): string corresponding to the
+            features of the dataframe argument to be train 
+            the model on
+            df (pandas.DataFrame): dataframe with data from
+            all cards
+        """
         self.textCategory = textCategory
-        self.df = df.IF_df
+        self.df = df
         self.textTokenized = self._tokenize()
         self.probs = self._generateProbs()
     
 
     def _tokenize(self) -> str:
+        """_summary_
+
+        Returns:
+            str: _description_
+        """
         # Turn all the text from one category (pandas column) into a string
         textList = list(self.df[self.textCategory].dropna().values)
         textListFiltered = [currText.replace('\n', ' ').lower() for currText in textList]
@@ -50,6 +68,11 @@ class BagOfWords(TextModel):
         return word_tokenize(textStr)
     
     def _generateProbs(self) -> dict:
+        """_summary_
+
+        Returns:
+            dict: _description_
+        """
         # now have a list of every word in every card
         # create a set of all possible words
         possibleWords = list(set(self.textTokenized))
@@ -66,10 +89,29 @@ class BagOfWords(TextModel):
         return {word : counts[word]/totalWords for word in possibleWords} 
 
     def sample(self, numOfWords) -> str:
+        """generate a string of n tokens, chosen with
+        the tokens' individual frequency probability
+
+        Args:
+            numOfWords (int): number of tokens in the generated sample
+
+        Returns:
+            str: ' ' joined list of a specified number of possible tokens
+        """
         generated = np.random.choice(list(self.probs.keys()), size=numOfWords, p=list(self.probs.values()))
         result = ' '.join(generated)
         return result
     
     
+class BigramModel(TextModel):
+    def __init__(self, textCategory: str, df: pd.DataFrame) -> None:
+        self.textCategory = textCategory
+        self.df = df
+
     
+    def _tokenize(self):
+        pass
+
+    def sample(self):
+        pass
     

@@ -2,11 +2,12 @@ import textModels as tm
 import DataWork as dw
 
 class Card:
-    def __init__(self) -> None:
+    def __init__(self, colors=None, legalities=None, setName=None) -> None:
         self.name = None
         self.typeLine = None
         self.textBody = None
-        self.df = dw.DataWork()
+        df = dw.DataWork(colors, legalities, setName)
+        self.df = df.getIFDF()
     
     def generateCard(self):
         self.name = tm.BagOfWords('name', self.df).sample(2)
@@ -14,11 +15,13 @@ class Card:
         self.textBody = tm.BagOfWords('oracle_text', self.df).sample(25)
 
     def printCard(self):
+        print('---------------------------------')
         print(self.name)
         print()
         print(self.typeLine[0] + ' - ' + self.typeLine[1])
         print()
         self._printNicely(self.textBody, 5)
+        print('---------------------------------')
     
     def _printNicely(self, input: str, wordsPerLine: int):
         ugh = input.split(' ')
