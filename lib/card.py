@@ -1,5 +1,5 @@
-import textModels as tm
-import DataWork as dw
+import lib.textmodels as tm
+import lib.datawork as dw
 
 class Card:
     def __init__(self, colors=None, legalities=None, setName=None) -> None:
@@ -21,6 +21,8 @@ class Card:
         self.textBody = self.textBodyModel.sample(50)
 
     def printCard(self):
+        # TODO: add some logic to make card make more sense
+        # - if it is a sorcery or instant or land, don't give it a subtype
         print('---------------------------------')
         print(self.name)
         print()

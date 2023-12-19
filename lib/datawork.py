@@ -52,7 +52,7 @@ class DataWork:
 
         Args:
             colors (list, optional): List of colors represented as strings of single uppercase letters
-            (ex: ['G'], ['G', 'R']). Defaults to None.
+            (ex: ['G'], ['G', 'R']) (U = Blue, B = Black). Defaults to None.
             legalities (list, optional): List of ruleset legalities represented by strings
             (ex: ['Modern', 'Pauper']). Defaults to None.
             setName (str, optional): String that represents the set that a card is released in. Defaults to None.
