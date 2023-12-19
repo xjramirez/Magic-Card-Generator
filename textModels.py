@@ -1,7 +1,7 @@
 import numpy as np
-import string
+from collections import defaultdict
 import pandas as pd
-from nltk import word_tokenize
+from nltk import word_tokenize, sent_tokenize
 from abc import ABC, abstractmethod
 
 # each model will do the following things:
@@ -63,7 +63,6 @@ class BagOfWords(TextModel):
         # Turn all the text from one category (pandas column) into a string
         textList = list(self.df[self.textCategory].dropna().values)
         textListFiltered = [currText.replace('\n', ' ').lower() for currText in textList]
-        #print(sum([len(line) for line in textListFiltered])/len(textListFiltered))
         textStr = ' '.join(textListFiltered)
         return word_tokenize(textStr)
     
@@ -88,7 +87,7 @@ class BagOfWords(TextModel):
         # and the value is (# instances of the word) / (# all words)
         return {word : counts[word]/totalWords for word in possibleWords} 
 
-    def sample(self, numOfWords) -> str:
+    def sample(self, numOfWords=25) -> str:
         """generate a string of n tokens, chosen with
         the tokens' individual frequency probability
 
@@ -107,11 +106,86 @@ class BigramModel(TextModel):
     def __init__(self, textCategory: str, df: pd.DataFrame) -> None:
         self.textCategory = textCategory
         self.df = df
+        self.textTokenized = self._tokenize()
+        self.probs = self._generateProbs()
 
+    def _tokenize(self) -> list:
+        tokens = []
+        textList = list(self.df[self.textCategory].dropna().values)
+        textListFiltered = [currText.replace('\n', ' \n ').lower() for currText in textList]
+        #make every card end with CARDEND so that when it gets squished together we get
+        # [CARDSTART <s> Whenever a b c d e . </s> <s> f g h i . </s> CARDEND CARDSTART <s> j k l m . </s> CARDEND] 
+        for card in textListFiltered:
+            card_tokens = ['CARDSTART']
+            sentences = sent_tokenize(card)
+            for sentence in sentences:
+                sent_tokens = ['<s>']
+                sent_tokens += word_tokenize(sentence)
+                sent_tokens.append('</s>')
+                card_tokens += sent_tokens
+            card_tokens.append('CARDEND')
+            tokens += card_tokens
+        return tokens
     
-    def _tokenize(self):
-        pass
+    def _generateProbs(self):
+        # create vocab of all possible words once
+        vocabulary = set(self.textTokenized)
+        vocabulary.discard('CARDSTART')
+        # create a counts nested dictionary
+        # making each outer key be a potential starting word
+        # and each inner key a potential following word
+        # default count (the value of the nested dict) 1 to create smoothing [edit: smoothing sucked]
+        counts = defaultdict(lambda: defaultdict(int))
+        #defaultdict(lambda: defaultdict(lambda: 0))
+        #for context in vocabulary.union({'CARDSTART'}):
+        #    for current in vocabulary:
+        #        _ = counts[context][current]
+        # start counting
+        # for each word in the TOKENIZED TEXT
+        # walk down the words and look with the one following it
+        # increment the val in the dictionary where the outer key is the word
+        # we're at, and the inner key is the word coming next
+        # i.e. {context(/this word) : {current(/word that follows) : val(/no. times current comes after context in the corpus) += 1}}
+        for context, current in zip(self.textTokenized, self.textTokenized[1:]):
+            if current != 'CARDSTART':
+                counts[context][current] += 1
+        
+        # now do some math
+        # create the same-ish default dict
+        probabilities = defaultdict(lambda: defaultdict(float))
+        # iterate over the key-value pairs
+        # for each possible starting word...
+        for context, context_counts in counts.items():
+            # do a little baby probability
+            # total number of times words show up (AFTER A GIVEN CONTEXT WORD)
+            context_total = sum(context_counts.values())
+            # divide each time a word shows up (AFTER A GIVEN CONTEXT WORD) by the total number of times words show up (AAGCW)
+            # save that value as the value to its word's key (IN THE SUPERDICT THAT IS AAGCW)
+            probabilities[context] = {current: current_count / context_total for current, current_count in context_counts.items()}
 
-    def sample(self):
-        pass
+        return probabilities
+
+
+    def _conditionalSample(self, word):
+        generated = np.random.choice(list(self.probs[word].keys()), p=list(self.probs[word].values()))
+        return generated
     
+    def sample(self, numOfWords=None):
+        seq = ['CARDSTART']
+        for i in range(0, numOfWords):
+            if seq[i] == 'CARDEND':
+                break
+            else:
+                seq.append(self._conditionalSample(seq[i]))
+        result = ' '.join(seq)
+        # TODO: figure out some regexes for this
+        result = result.replace('<s>', '')
+        result = result.replace('</s>', '')
+        result = result.replace('CARDSTART', '')
+        result = result.replace('CARDEND', '')
+        result = result.replace(' }', '}')
+        result = result.replace('{ ', '{')
+        result = result.replace(' .', '.')
+        result = result.replace(' ,', ',')
+        result = result.replace(' n\'t', 'n\'t')
+        return result

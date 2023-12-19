@@ -6,13 +6,19 @@ class Card:
         self.name = None
         self.typeLine = None
         self.textBody = None
+        
         df = dw.DataWork(colors, legalities, setName)
         self.df = df.getIFDF()
+
+        self.nameModel = tm.BagOfWords('name', self.df)
+        self.superTypeModel = tm.BagOfWords('super_type', self.df)
+        self.subTypeModel = tm.BagOfWords('sub_type', self.df)
+        self.textBodyModel = tm.BigramModel('oracle_text', self.df)
     
     def generateCard(self):
-        self.name = tm.BagOfWords('name', self.df).sample(2)
-        self.typeLine = [tm.BagOfWords('super_type', self.df).sample(1), tm.BagOfWords('sub_type', self.df).sample(2)]
-        self.textBody = tm.BagOfWords('oracle_text', self.df).sample(25)
+        self.name = self.nameModel.sample(2)
+        self.typeLine = [self.superTypeModel.sample(1), self.subTypeModel.sample(2)]
+        self.textBody = self.textBodyModel.sample(50)
 
     def printCard(self):
         print('---------------------------------')
